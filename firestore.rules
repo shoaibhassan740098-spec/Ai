@@ -1,0 +1,107 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidChatSession(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.language is string && (data.language == 'en' || data.language == 'ur') &&
+             (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 1000));
+    }
+
+    function isValidChatMessage(data) {
+      return data.sessionId is string && data.sessionId.size() > 0 && data.sessionId.size() <= 128 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.role is string && (data.role == 'user' || data.role == 'model') &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 20000 &&
+             data.language is string && data.language.size() <= 10;
+    }
+
+    function isValidSavedCreation(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.type is string && (data.type == 'image' || data.type == 'qa') &&
+             data.prompt is string && data.prompt.size() > 0 && data.prompt.size() <= 2000 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.language is string && data.language.size() <= 10 &&
+             data.content is string && data.content.size() <= 20000;
+    }
+
+    match /chat_sessions/{sessionId} {
+      allow get: if isSignedIn() && isValidId(sessionId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(sessionId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidChatSession(incoming()) &&
+                       incoming().keys().hasAll(['userId', 'title', 'language', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'language', 'lastMessage', 'createdAt', 'updatedAt']);
+
+      allow update: if isSignedIn() &&
+                       isValidId(sessionId) &&
+                       existing().userId == request.auth.uid &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidChatSession(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'language', 'lastMessage', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(sessionId) && existing().userId == request.auth.uid;
+    }
+
+    match /chat_messages/{messageId} {
+      allow get: if isSignedIn() && isValidId(messageId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(messageId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       isValidChatMessage(incoming()) &&
+                       incoming().keys().hasAll(['sessionId', 'userId', 'role', 'content', 'language', 'createdAt']) &&
+                       incoming().keys().hasOnly(['sessionId', 'userId', 'role', 'content', 'language', 'createdAt']);
+
+      allow update, delete: if isSignedIn() && isValidId(messageId) && existing().userId == request.auth.uid;
+    }
+
+    match /saved_creations/{creationId} {
+      allow get: if isSignedIn() && isValidId(creationId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(creationId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       isValidSavedCreation(incoming()) &&
+                       incoming().keys().hasAll(['userId', 'type', 'prompt', 'title', 'category', 'language', 'content', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'type', 'prompt', 'title', 'category', 'language', 'content', 'createdAt']);
+
+      allow delete: if isSignedIn() && isValidId(creationId) && existing().userId == request.auth.uid;
+    }
+  }
+}

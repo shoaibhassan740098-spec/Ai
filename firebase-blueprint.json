@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Represents an AI conversation thread scoped to a single user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user who owns this session."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short conversational title or summary."
+        },
+        "language": {
+          "type": "string",
+          "enum": ["en", "ur"],
+          "description": "Selected language mode (English or Urdu)."
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "Preview of the most recent message in the chat."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp; clients must write FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp; clients must write FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["userId", "title", "language", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A single prompt or AI response in a chat session.",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "The ID of the parent ChatSession."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "model"],
+          "description": "Sender role in the conversation."
+        },
+        "content": {
+          "type": "string",
+          "description": "The text content of the message in English or Urdu."
+        },
+        "language": {
+          "type": "string",
+          "description": "Language used for the message."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Message timestamp; clients must write FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["sessionId", "userId", "role", "content", "language", "createdAt"]
+    },
+    "SavedCreation": {
+      "title": "SavedCreation",
+      "description": "Saved AI prompts, knowledge queries, or generated image metadata.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who generated or saved this item."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["image", "qa"],
+          "description": "Type of saved item."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Prompt text entered by the user."
+        },
+        "title": {
+          "type": "string",
+          "description": "Brief descriptive title."
+        },
+        "category": {
+          "type": "string",
+          "description": "Domain category: education, technology, science, business, general."
+        },
+        "language": {
+          "type": "string",
+          "description": "Language: en or ur."
+        },
+        "content": {
+          "type": "string",
+          "description": "Generated content or image description."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp; clients must write FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["userId", "type", "prompt", "title", "category", "language", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/chat_sessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/ChatSession"
+      },
+      "description": "Collection of chat sessions owned by authenticated users."
+    },
+    "/chat_messages/{messageId}": {
+      "schema": {
+        "$ref": "#/entities/ChatMessage"
+      },
+      "description": "Collection of chat messages associated with a session."
+    },
+    "/saved_creations/{creationId}": {
+      "schema": {
+        "$ref": "#/entities/SavedCreation"
+      },
+      "description": "Collection of user-saved AI Q&A insights and image prompts."
+    }
+  }
+}
